@@ -1,6 +1,12 @@
+import { Response } from 'express';
 import { AppService } from './app.service';
 export declare class AppController {
     private readonly appService;
     constructor(appService: AppService);
     getHello(): string;
+    getRanking(): string;
+    getRankingEvent(res: Response): void;
+    postPlayer(res: Response, body: {
+        id: string;
+    }): void;
 }
