@@ -24,11 +24,42 @@ export class RankingCacheService {
 
 
   public setRankingData(key: string, data: any): void {
-    this.cache.set(key, data);
+    const ranking = this.cache.get("ranking") || [];
+    ranking.push({id : key, rank : data})
+    this.cache.set("ranking", ranking);
   }
 
   public getRankingData(key: string): any | undefined {
     return this.cache.get(key);
+  }
+
+  public getId(key: string): any | undefined {
+    const ranking = this.cache.get("ranking") || [];
+    for (const playerData of ranking) {
+      if (playerData.id === key) {
+        return playerData.id;
+      }
+    }
+    return undefined;
+  }
+
+  public getRank(key: string): any | undefined {
+    const ranking = this.cache.get("ranking") || [];
+    for (const playerData of ranking) {
+      if (playerData.id === key) {
+        return playerData.rank;
+      }
+    }
+    return undefined;
+  }
+
+  public updateRank(player: string, newRank: number): void {
+    const ranking = this.cache.get('ranking') || [];
+    const playerIndex = ranking.findIndex((p: any) => p.id === player);
+    if (playerIndex !== -1) {
+      ranking[playerIndex].rank = newRank;
+      this.cache.set('ranking', ranking.sort((a: { id: string, rank: number }, b: { id: string, rank: number }) => b.rank - a.rank));
+    }
   }
 
   public clearRankingData(key: string): void {
@@ -37,5 +68,14 @@ export class RankingCacheService {
 
   public clearAllRankingData(): void {
     this.cache.clear();
+  }
+  
+  public getAverageRanking(): number {
+    const ranking = this.cache.get('ranking') || [];
+    if (ranking.length === 0) {
+      return 0;
+    }
+    const total = ranking.reduce((acc: any, player: { rank: any; }) => acc + player.rank, 0);
+    return total / ranking.length;
   }
 }

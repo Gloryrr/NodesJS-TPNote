@@ -3,11 +3,9 @@ export declare class PlayerService {
     private rankingCacheService;
     private constructor();
     static getInstance(): PlayerService;
-    addPlayer(player: {
-        id: string;
-        rank: number;
-    }): void;
+    addPlayer(id: string, rank: number): void;
     getPlayer(id: string): any;
+    getRank(id: string): number;
     updatePlayer(id: string, rank: number): void;
     deletePlayer(id: string): void;
     getAllPlayers(): any[];

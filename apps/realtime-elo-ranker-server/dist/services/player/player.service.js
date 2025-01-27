@@ -23,20 +23,24 @@ let PlayerService = PlayerService_1 = class PlayerService {
         }
         return PlayerService_1.instance;
     }
-    addPlayer(player) {
-        const key = `player_${player.id}`;
-        this.rankingCacheService.cache.set(key, player);
+    addPlayer(id, rank) {
+        const key = id;
+        this.rankingCacheService.setRankingData(key, rank);
     }
     getPlayer(id) {
-        const key = `player_${id}`;
-        return this.rankingCacheService.cache.get(key);
+        const key = id;
+        return this.rankingCacheService.getId(key);
+    }
+    getRank(id) {
+        const key = id;
+        return this.rankingCacheService.getRank(key);
     }
     updatePlayer(id, rank) {
-        const key = `player_${id}`;
+        const key = id;
         const player = this.rankingCacheService.cache.get(key);
         if (player) {
             player.rank = rank;
-            this.rankingCacheService.cache.set(key, player);
+            this.rankingCacheService.updateRank(key, player);
         }
     }
     deletePlayer(id) {
@@ -46,7 +50,7 @@ let PlayerService = PlayerService_1 = class PlayerService {
     getAllPlayers() {
         const players = [];
         this.rankingCacheService.cache.forEach((value, key) => {
-            if (key.startsWith('player_')) {
+            if (key.startsWith('ranking')) {
                 players.push(value);
             }
         });

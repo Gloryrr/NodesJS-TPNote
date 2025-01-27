@@ -17,22 +17,27 @@ export class PlayerService {
     return PlayerService.instance;
   }
 
-  addPlayer(player: { id: string, rank: number }): void {
-    const key = `player_${player.id}`;
-    this.rankingCacheService.cache.set(key, player);
+  addPlayer(id: string, rank: number ): void {
+    const key = id;
+    this.rankingCacheService.setRankingData(key, rank);
   }
 
   getPlayer(id: string): any {
-    const key = `player_${id}`;
-    return this.rankingCacheService.cache.get(key);
+    const key = id;
+    return this.rankingCacheService.getId(key);
+  }
+
+  getRank(id: string): number {
+    const key = id;
+    return this.rankingCacheService.getRank(key);
   }
 
   updatePlayer(id: string, rank: number): void {
-    const key = `player_${id}`;
+    const key = id;
     const player = this.rankingCacheService.cache.get(key);
     if (player) {
       player.rank = rank;
-      this.rankingCacheService.cache.set(key, player);
+      this.rankingCacheService.updateRank(key, player);
     }
   }
 
@@ -44,7 +49,7 @@ export class PlayerService {
   getAllPlayers(): any[] {
     const players: any[] = [];
     this.rankingCacheService.cache.forEach((value, key) => {
-      if (key.startsWith('player_')) {
+      if (key.startsWith('ranking')) {
         players.push(value);
       }
     });

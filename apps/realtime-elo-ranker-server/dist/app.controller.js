@@ -16,17 +16,19 @@ exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const app_service_1 = require("./app.service");
 const player_data_1 = require("./data/player.data");
+const ranking_cache_service_1 = require("./services/ranking-cache/ranking-cache.service");
 const player_service_1 = require("./services/player/player.service");
+const match_service_1 = require("./services/match/match.service");
 let AppController = class AppController {
     constructor(appService) {
         this.appService = appService;
+        this.rankingCacheService = ranking_cache_service_1.RankingCacheService.getInstance();
     }
     getHello() {
         return this.appService.getHello();
     }
     getRanking() {
-        const playerService = player_service_1.PlayerService.getInstance();
-        return playerService.getRankingData("ranking");
+        return this.rankingCacheService.getRankingData("ranking");
     }
     getRankingEvent(res) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -46,11 +48,20 @@ let AppController = class AppController {
     postPlayer(res, body) {
         const { id } = body;
         const playerService = player_service_1.PlayerService.getInstance();
-        playerService.addPlayer({ id, rank: 1000 });
-        res.status(200).send(JSON.stringify({
-            id,
-            rank: 10000
-        }));
+        playerService.addPlayer(id, this.rankingCacheService.getAverageRanking());
+        res.status(200).send(id);
+    }
+    async postMatch(res, body) {
+        const matchService = match_service_1.MatchService.getInstance();
+        const { adversaryA, adversaryB, winner, draw } = body;
+        console.log(`Received match: adversaryA=${adversaryA}, adversaryB=${adversaryB}, winner=${winner}, draw=${draw}`);
+        if (!adversaryA || !adversaryB) {
+            console.error('adversaryA or adversaryB is undefined');
+            res.status(400).send('Invalid request: adversaryA or adversaryB is undefined');
+            return;
+        }
+        const result = await matchService.processMatch({ adversaryA, adversaryB, winner, draw });
+        res.status(200).send(result);
     }
 };
 exports.AppController = AppController;
@@ -81,6 +92,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], AppController.prototype, "postPlayer", null);
+__decorate([
+    (0, common_1.Post)("/post/match"),
+    __param(0, (0, common_1.Res)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "postMatch", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [app_service_1.AppService])
