@@ -1,14 +1,10 @@
+import { Repository } from 'typeorm';
+import { Player } from '../../data/model/PlayerEntity';
 export declare class RankingCacheService {
-    private static instance;
-    cache: Map<string, any>;
-    private constructor();
-    static getInstance(): RankingCacheService;
-    setRankingData(key: string, data: any): void;
-    getRankingData(key: string): any | undefined;
-    getId(key: string): any | undefined;
-    getRank(key: string): any | undefined;
-    updateRank(player: string, newRank: number): void;
-    clearRankingData(key: string): void;
-    clearAllRankingData(): void;
-    getAverageRanking(): number;
+    private readonly playerRepository;
+    constructor(playerRepository: Repository<Player>);
+    setRankingData(id: string, rank: number): Promise<void>;
+    getRankingData(): Promise<Player[]>;
+    getAverageRanking(): Promise<number>;
+    updateRank(id: string, newRank: number): Promise<void>;
 }

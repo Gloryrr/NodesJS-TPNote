@@ -1,71 +1,59 @@
 import { Injectable } from '@nestjs/common';
-import { PlayerService } from '../player/player.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Player } from '../../data/model/PlayerEntity';
 import { RankingCacheService } from '../ranking-cache/ranking-cache.service';
 
 @Injectable()
 export class MatchService {
-  private static instance: MatchService;
-  private playerService: PlayerService;
-  private ranckingCacheService: RankingCacheService;
+  constructor(
+    @InjectRepository(Player)
+    private readonly playerRepository: Repository<Player>,
+    private readonly rankingCacheService: RankingCacheService,
+  ) {}
 
-  private constructor() {
-    this.playerService = PlayerService.getInstance();
-    this.ranckingCacheService = RankingCacheService.getInstance();
-  }
+  async processMatch(body: { adversaryA: string, adversaryB: string, winner: string | null, draw: boolean }): Promise<string> {
+    const { adversaryA, adversaryB, winner, draw } = body;
 
-  public static getInstance(): MatchService {
-    if (!MatchService.instance) {
-      MatchService.instance = new MatchService();
+    const adversaryAPlayer = await this.playerRepository.findOne({ where: { name: adversaryA } });
+    const adversaryBPlayer = await this.playerRepository.findOne({ where: { name: adversaryB } });
+    console.log(adversaryAPlayer, adversaryBPlayer);
+
+    if (!adversaryAPlayer || !adversaryBPlayer) {
+      throw new Error('Les deux joueurs ne sont pas enregistrés');
     }
-    return MatchService.instance;
-  }
 
-  processMatch(body: { adversaryA: string, adversaryB: string, winner: string | null, draw: boolean }): string {
-      const { adversaryA, adversaryB, winner, draw } = body;
-      const adversaryAPlayer = this.playerService.getPlayer(adversaryA);
-      const adversaryBPlayer = this.playerService.getPlayer(adversaryB);
-      const adversaryAPlayerRank = this.ranckingCacheService.getRank(adversaryA);
-      const adversaryBPlayerRank = this.ranckingCacheService.getRank(adversaryB);
+    const adversaryAPlayerRank = adversaryAPlayer.rank;
+    const adversaryBPlayerRank = adversaryBPlayer.rank;
 
-      if (!adversaryAPlayer || !adversaryBPlayer) {
-        throw new Error('Player not found');
-      }
-    
-      const K = 32; // Coefficient de pondération
-    
-      // Calcul des probabilités de victoire
-      const WeA = 1 / (1 + Math.pow(10, (adversaryBPlayerRank - adversaryAPlayerRank) / 400));
-      const WeB = 1 / (1 + Math.pow(10, (adversaryAPlayerRank - adversaryBPlayerRank) / 400));
-    
-      let result: string;
-      let scoreA: number;
-      let scoreB: number;
+    const K = 32;
+    const WeA = 1 / (1 + Math.pow(10, (adversaryBPlayerRank - adversaryAPlayerRank) / 400));
+    const WeB = 1 / (1 + Math.pow(10, (adversaryAPlayerRank - adversaryBPlayerRank) / 400));
 
-      if (draw) {
-        // Draw
-        scoreA = 0.5;
-        scoreB = 0.5;
-        result = 'Match was a draw';
-      } else if (winner === adversaryA) {
-        // Adversary A wins
+    let scoreA = 0.5;
+    let scoreB = 0.5;
+    let result = 'Match nul';
+
+    if (!draw) {
+      if (winner === adversaryA) {
         scoreA = 1;
         scoreB = 0;
-        result = `Match processed: ${adversaryA} defeated ${adversaryB}`;
+        result = `${adversaryA} a battu ${adversaryB}`;
       } else if (winner === adversaryB) {
-        // Adversary B wins
         scoreA = 0;
         scoreB = 1;
-        result = `Match processed: ${adversaryB} defeated ${adversaryA}`;
+        result = `${adversaryB} a battu ${adversaryA}`;
       } else {
-        throw new Error('Invalid match result');
+        throw new Error('le résultat du match est invalide');
       }
-    
-      // Mise à jour des classements
-      const scoreFinalA = Math.round(adversaryAPlayerRank + K * (scoreA - WeA));
-      const scoreFinalB = Math.round(adversaryBPlayerRank + K * (scoreB - WeB));
-      this.ranckingCacheService.updateRank(adversaryA, scoreFinalA);
-      this.ranckingCacheService.updateRank(adversaryB, scoreFinalB);
-      
-      return result;
+    }
+
+    const scoreFinalA = Math.round(adversaryAPlayerRank + K * (scoreA - WeA));
+    const scoreFinalB = Math.round(adversaryBPlayerRank + K * (scoreB - WeB));
+
+    await this.rankingCacheService.updateRank(adversaryA, scoreFinalA);
+    await this.rankingCacheService.updateRank(adversaryB, scoreFinalB);
+
+    return result;
   }
 }

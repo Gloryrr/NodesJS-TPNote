@@ -8,8 +8,8 @@ describe('RankingCacheService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
          {
-          provide : RankingCacheService,
-          useValue: RankingCacheService.getInstance(),
+          provide: RankingCacheService,
+          useValue: {},
          },
       ],
     }).compile();

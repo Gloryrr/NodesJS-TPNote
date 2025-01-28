@@ -15,52 +15,55 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const app_service_1 = require("./app.service");
-const player_data_1 = require("./data/player.data");
-const ranking_cache_service_1 = require("./services/ranking-cache/ranking-cache.service");
 const player_service_1 = require("./services/player/player.service");
 const match_service_1 = require("./services/match/match.service");
+const ranking_cache_service_1 = require("./services/ranking-cache/ranking-cache.service");
+const FAKE_PLAYERS = ['Player1', 'Player2', 'Player3'];
 let AppController = class AppController {
-    constructor(appService) {
+    constructor(appService, playerService, matchService, rankingCacheService) {
         this.appService = appService;
-        this.rankingCacheService = ranking_cache_service_1.RankingCacheService.getInstance();
+        this.playerService = playerService;
+        this.matchService = matchService;
+        this.rankingCacheService = rankingCacheService;
     }
     getHello() {
         return this.appService.getHello();
     }
-    getRanking() {
-        return this.rankingCacheService.getRankingData("ranking");
+    async getRanking() {
+        return await this.rankingCacheService.getRankingData();
     }
-    getRankingEvent(res) {
+    async rankingEvent(res) {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();
-        setInterval(() => {
+        const intervalId = setInterval(async () => {
+            const players = await this.rankingCacheService.getRankingData();
+            const randomPlayer = players[Math.floor(Math.random() * players.length)];
+            const newRank = Math.floor(Math.random() * 2500);
+            await this.rankingCacheService.updateRank(randomPlayer.name, newRank);
             res.write("event: message\n" + "data: " + JSON.stringify({
                 type: "RankingUpdate",
                 player: {
-                    id: player_data_1.FAKE_PLAYERS[Math.floor(Math.random() * player_data_1.FAKE_PLAYERS.length)],
-                    rank: Math.floor(Math.random() * 2500)
+                    id: randomPlayer.name,
+                    name: randomPlayer.name,
+                    rank: newRank
                 }
             }) + '\n\n');
         }, 500);
+        res.on('close', () => {
+            clearInterval(intervalId);
+            res.end();
+        });
     }
-    postPlayer(res, body) {
+    async postPlayer(res, body) {
         const { id } = body;
-        const playerService = player_service_1.PlayerService.getInstance();
-        playerService.addPlayer(id, this.rankingCacheService.getAverageRanking());
+        const averageRank = await this.rankingCacheService.getAverageRanking();
+        await this.playerService.addPlayer(id, averageRank);
         res.status(200).send(id);
     }
     async postMatch(res, body) {
-        const matchService = match_service_1.MatchService.getInstance();
-        const { adversaryA, adversaryB, winner, draw } = body;
-        console.log(`Received match: adversaryA=${adversaryA}, adversaryB=${adversaryB}, winner=${winner}, draw=${draw}`);
-        if (!adversaryA || !adversaryB) {
-            console.error('adversaryA or adversaryB is undefined');
-            res.status(400).send('Invalid request: adversaryA or adversaryB is undefined');
-            return;
-        }
-        const result = await matchService.processMatch({ adversaryA, adversaryB, winner, draw });
+        const result = await this.matchService.processMatch(body);
         res.status(200).send(result);
     }
 };
@@ -72,28 +75,28 @@ __decorate([
     __metadata("design:returntype", String)
 ], AppController.prototype, "getHello", null);
 __decorate([
-    (0, common_1.Get)("/get/ranking"),
+    (0, common_1.Get)('/get/ranking'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", String)
+    __metadata("design:returntype", Promise)
 ], AppController.prototype, "getRanking", null);
 __decorate([
     (0, common_1.Get)("/ranking/event"),
     __param(0, (0, common_1.Res)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getRankingEvent", null);
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "rankingEvent", null);
 __decorate([
-    (0, common_1.Post)("/post/player"),
+    (0, common_1.Post)('/post/player'),
     __param(0, (0, common_1.Res)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AppController.prototype, "postPlayer", null);
 __decorate([
-    (0, common_1.Post)("/post/match"),
+    (0, common_1.Post)('/post/match'),
     __param(0, (0, common_1.Res)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -102,6 +105,9 @@ __decorate([
 ], AppController.prototype, "postMatch", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [app_service_1.AppService])
+    __metadata("design:paramtypes", [app_service_1.AppService,
+        player_service_1.PlayerService,
+        match_service_1.MatchService,
+        ranking_cache_service_1.RankingCacheService])
 ], AppController);
 //# sourceMappingURL=app.controller.js.map

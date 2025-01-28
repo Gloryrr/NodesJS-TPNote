@@ -73,7 +73,7 @@ export default function Home() {
     setLadderData((prevData) => {
       return quickSortPlayers(
         prevData.map((p) => {
-          if (p.id === player.id) {
+          if (p.name === player.name) {
             return player;
           }
           return p;

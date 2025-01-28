@@ -8,66 +8,64 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var MatchService_1;
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MatchService = void 0;
 const common_1 = require("@nestjs/common");
-const player_service_1 = require("../player/player.service");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const PlayerEntity_1 = require("../../data/model/PlayerEntity");
 const ranking_cache_service_1 = require("../ranking-cache/ranking-cache.service");
-let MatchService = MatchService_1 = class MatchService {
-    constructor() {
-        this.playerService = player_service_1.PlayerService.getInstance();
-        this.ranckingCacheService = ranking_cache_service_1.RankingCacheService.getInstance();
+let MatchService = class MatchService {
+    constructor(playerRepository, rankingCacheService) {
+        this.playerRepository = playerRepository;
+        this.rankingCacheService = rankingCacheService;
     }
-    static getInstance() {
-        if (!MatchService_1.instance) {
-            MatchService_1.instance = new MatchService_1();
-        }
-        return MatchService_1.instance;
-    }
-    processMatch(body) {
+    async processMatch(body) {
         const { adversaryA, adversaryB, winner, draw } = body;
-        const adversaryAPlayer = this.playerService.getPlayer(adversaryA);
-        const adversaryBPlayer = this.playerService.getPlayer(adversaryB);
-        const adversaryAPlayerRank = this.ranckingCacheService.getRank(adversaryA);
-        const adversaryBPlayerRank = this.ranckingCacheService.getRank(adversaryB);
+        const adversaryAPlayer = await this.playerRepository.findOne({ where: { name: adversaryA } });
+        const adversaryBPlayer = await this.playerRepository.findOne({ where: { name: adversaryB } });
+        console.log(adversaryAPlayer, adversaryBPlayer);
         if (!adversaryAPlayer || !adversaryBPlayer) {
-            throw new Error('Player not found');
+            throw new Error('One or both players not found');
         }
+        const adversaryAPlayerRank = adversaryAPlayer.rank;
+        const adversaryBPlayerRank = adversaryBPlayer.rank;
         const K = 32;
         const WeA = 1 / (1 + Math.pow(10, (adversaryBPlayerRank - adversaryAPlayerRank) / 400));
         const WeB = 1 / (1 + Math.pow(10, (adversaryAPlayerRank - adversaryBPlayerRank) / 400));
-        let result;
-        let scoreA;
-        let scoreB;
-        if (draw) {
-            scoreA = 0.5;
-            scoreB = 0.5;
-            result = 'Match was a draw';
-        }
-        else if (winner === adversaryA) {
-            scoreA = 1;
-            scoreB = 0;
-            result = `Match processed: ${adversaryA} defeated ${adversaryB}`;
-        }
-        else if (winner === adversaryB) {
-            scoreA = 0;
-            scoreB = 1;
-            result = `Match processed: ${adversaryB} defeated ${adversaryA}`;
-        }
-        else {
-            throw new Error('Invalid match result');
+        let scoreA = 0.5;
+        let scoreB = 0.5;
+        let result = 'Match drawn';
+        if (!draw) {
+            if (winner === adversaryA) {
+                scoreA = 1;
+                scoreB = 0;
+                result = `${adversaryA} defeated ${adversaryB}`;
+            }
+            else if (winner === adversaryB) {
+                scoreA = 0;
+                scoreB = 1;
+                result = `${adversaryB} defeated ${adversaryA}`;
+            }
+            else {
+                throw new Error('Invalid match result');
+            }
         }
         const scoreFinalA = Math.round(adversaryAPlayerRank + K * (scoreA - WeA));
         const scoreFinalB = Math.round(adversaryBPlayerRank + K * (scoreB - WeB));
-        this.ranckingCacheService.updateRank(adversaryA, scoreFinalA);
-        this.ranckingCacheService.updateRank(adversaryB, scoreFinalB);
+        await this.rankingCacheService.updateRank(adversaryA, scoreFinalA);
+        await this.rankingCacheService.updateRank(adversaryB, scoreFinalB);
         return result;
     }
 };
 exports.MatchService = MatchService;
-exports.MatchService = MatchService = MatchService_1 = __decorate([
+exports.MatchService = MatchService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [])
+    __param(0, (0, typeorm_1.InjectRepository)(PlayerEntity_1.Player)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        ranking_cache_service_1.RankingCacheService])
 ], MatchService);
 //# sourceMappingURL=match.service.js.map

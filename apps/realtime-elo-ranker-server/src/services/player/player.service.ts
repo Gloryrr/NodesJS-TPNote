@@ -1,58 +1,42 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Player } from '../../data/model/PlayerEntity';
 import { RankingCacheService } from '../ranking-cache/ranking-cache.service';
 
 @Injectable()
 export class PlayerService {
-  private static instance: PlayerService;
-  private rankingCacheService: RankingCacheService;
+  constructor(
+    @InjectRepository(Player)
+    private readonly playerRepository: Repository<Player>,
+    private readonly rankingCacheService: RankingCacheService,
+  ) {}
 
-  private constructor() {
-    this.rankingCacheService = RankingCacheService.getInstance();
+  async addPlayer(id: string, rank: number): Promise<void> {
+    const player = new Player();
+    player.name = id;
+    player.rank = rank;
+    await this.playerRepository.save(player);
   }
 
-  public static getInstance(): PlayerService {
-    if (!PlayerService.instance) {
-      PlayerService.instance = new PlayerService();
-    }
-    return PlayerService.instance;
+  async getPlayer(id: number): Promise<Player | undefined> {
+    const player = await this.playerRepository.findOne({ where: { id } });
+    return player ?? undefined;
   }
 
-  addPlayer(id: string, rank: number ): void {
-    const key = id;
-    this.rankingCacheService.setRankingData(key, rank);
+  async getAllPlayers(): Promise<Player[]> {
+    return await this.playerRepository.find();
   }
 
-  getPlayer(id: string): any {
-    const key = id;
-    return this.rankingCacheService.getId(key);
-  }
-
-  getRank(id: string): number {
-    const key = id;
-    return this.rankingCacheService.getRank(key);
-  }
-
-  updatePlayer(id: string, rank: number): void {
-    const key = id;
-    const player = this.rankingCacheService.cache.get(key);
+  async updatePlayer(id: number, rank: number): Promise<void> {
+    const player = await this.playerRepository.findOne({ where: { id } });
     if (player) {
       player.rank = rank;
-      this.rankingCacheService.updateRank(key, player);
+      await this.playerRepository.save(player);
     }
   }
 
-  deletePlayer(id: string): void {
-    const key = `player_${id}`;
-    this.rankingCacheService.cache.delete(key);
-  }
-
-  getAllPlayers(): any[] {
-    const players: any[] = [];
-    this.rankingCacheService.cache.forEach((value, key) => {
-      if (key.startsWith('ranking')) {
-        players.push(value);
-      }
-    });
-    return players;
+  async deletePlayer(id: number): Promise<void> {
+    await this.playerRepository.delete({ id });
   }
 }

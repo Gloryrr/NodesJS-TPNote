@@ -1,66 +1,73 @@
 import { Controller, Get, Res, Post, Body } from '@nestjs/common';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { FAKE_PLAYERS } from './data/player.data';
-import { RankingCacheService } from './services/ranking-cache/ranking-cache.service';
 import { PlayerService } from './services/player/player.service';
 import { MatchService } from './services/match/match.service';
+import { RankingCacheService } from './services/ranking-cache/ranking-cache.service';
+
+const FAKE_PLAYERS = ['Player1', 'Player2', 'Player3']; // Remplacez par vos joueurs fictifs
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-  rankingCacheService = RankingCacheService.getInstance();
-  
+  constructor(
+    private readonly appService: AppService,
+    private readonly playerService: PlayerService,
+    private readonly matchService: MatchService,
+    private readonly rankingCacheService: RankingCacheService,
+  ) {}
+
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
-  
-  @Get("/get/ranking")
-  getRanking(): string {
-    return this.rankingCacheService.getRankingData("ranking");
+
+  @Get('/get/ranking')
+  async getRanking(): Promise<any> {
+    return await this.rankingCacheService.getRankingData();
   }
 
   @Get("/ranking/event")
-  getRankingEvent(@Res() res: Response): void {
+  async rankingEvent(@Res() res: Response): Promise<void> {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    setInterval(() => {
+    const intervalId = setInterval(async () => { 
+      const players = await this.rankingCacheService.getRankingData();
+      const randomPlayer = players[Math.floor(Math.random() * players.length)];
+      const newRank = Math.floor(Math.random() * 2500);
+
+      // Update player's rank in the database
+      await this.rankingCacheService.updateRank(randomPlayer.name, newRank);
+
       res.write("event: message\n" + "data: " + JSON.stringify({
         type: "RankingUpdate",
         player: {
-          id: FAKE_PLAYERS[Math.floor(Math.random() * FAKE_PLAYERS.length)],
-          rank: Math.floor(Math.random() * 2500)
+          id: randomPlayer.name,
+          name: randomPlayer.name,
+          rank: newRank
         }
       }) + '\n\n');
     }, 500);
+
+    res.on('close', () => {
+      clearInterval(intervalId);
+      res.end();
+    });
   }
 
-  @Post("/post/player")
-  postPlayer(@Res() res: Response, @Body() body: { id: string }): void {
+  @Post('/post/player')
+  async postPlayer(@Res() res: Response, @Body() body: { id: string }): Promise<void> {
     const { id } = body;
-    const playerService = PlayerService.getInstance();
-    playerService.addPlayer( id, this.rankingCacheService.getAverageRanking() );
+    const averageRank = await this.rankingCacheService.getAverageRanking();
+    await this.playerService.addPlayer(id, averageRank);
     res.status(200).send(id);
   }
 
-  @Post("/post/match")
+  @Post('/post/match')
   async postMatch(@Res() res: Response, @Body() body: { adversaryA: string, adversaryB: string, winner: string | null, draw: boolean }): Promise<void> {
-    const matchService = MatchService.getInstance();
-    const { adversaryA, adversaryB, winner, draw } = body;
-  
-    console.log(`Received match: adversaryA=${adversaryA}, adversaryB=${adversaryB}, winner=${winner}, draw=${draw}`);
-  
-    if (!adversaryA || !adversaryB) {
-      console.error('adversaryA or adversaryB is undefined');
-      res.status(400).send('Invalid request: adversaryA or adversaryB is undefined');
-      return;
-    }
-  
-    const result = await matchService.processMatch({ adversaryA, adversaryB, winner, draw });
+    const result = await this.matchService.processMatch(body);
     res.status(200).send(result);
   }
 }

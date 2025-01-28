@@ -8,58 +8,50 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var PlayerService_1;
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PlayerService = void 0;
 const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const PlayerEntity_1 = require("../../data/model/PlayerEntity");
 const ranking_cache_service_1 = require("../ranking-cache/ranking-cache.service");
-let PlayerService = PlayerService_1 = class PlayerService {
-    constructor() {
-        this.rankingCacheService = ranking_cache_service_1.RankingCacheService.getInstance();
+let PlayerService = class PlayerService {
+    constructor(playerRepository, rankingCacheService) {
+        this.playerRepository = playerRepository;
+        this.rankingCacheService = rankingCacheService;
     }
-    static getInstance() {
-        if (!PlayerService_1.instance) {
-            PlayerService_1.instance = new PlayerService_1();
-        }
-        return PlayerService_1.instance;
+    async addPlayer(id, rank) {
+        const player = new PlayerEntity_1.Player();
+        player.name = id;
+        player.rank = rank;
+        await this.playerRepository.save(player);
     }
-    addPlayer(id, rank) {
-        const key = id;
-        this.rankingCacheService.setRankingData(key, rank);
+    async getPlayer(id) {
+        const player = await this.playerRepository.findOne({ where: { id } });
+        return player ?? undefined;
     }
-    getPlayer(id) {
-        const key = id;
-        return this.rankingCacheService.getId(key);
+    async getAllPlayers() {
+        return await this.playerRepository.find();
     }
-    getRank(id) {
-        const key = id;
-        return this.rankingCacheService.getRank(key);
-    }
-    updatePlayer(id, rank) {
-        const key = id;
-        const player = this.rankingCacheService.cache.get(key);
+    async updatePlayer(id, rank) {
+        const player = await this.playerRepository.findOne({ where: { id } });
         if (player) {
             player.rank = rank;
-            this.rankingCacheService.updateRank(key, player);
+            await this.playerRepository.save(player);
         }
     }
-    deletePlayer(id) {
-        const key = `player_${id}`;
-        this.rankingCacheService.cache.delete(key);
-    }
-    getAllPlayers() {
-        const players = [];
-        this.rankingCacheService.cache.forEach((value, key) => {
-            if (key.startsWith('ranking')) {
-                players.push(value);
-            }
-        });
-        return players;
+    async deletePlayer(id) {
+        await this.playerRepository.delete({ id });
     }
 };
 exports.PlayerService = PlayerService;
-exports.PlayerService = PlayerService = PlayerService_1 = __decorate([
+exports.PlayerService = PlayerService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [])
+    __param(0, (0, typeorm_1.InjectRepository)(PlayerEntity_1.Player)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        ranking_cache_service_1.RankingCacheService])
 ], PlayerService);
 //# sourceMappingURL=player.service.js.map
