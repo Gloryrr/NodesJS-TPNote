@@ -29,7 +29,7 @@ let MatchService = class MatchService {
         const adversaryBPlayer = await this.playerRepository.findOne({ where: { name: adversaryB } });
         console.log(adversaryAPlayer, adversaryBPlayer);
         if (!adversaryAPlayer || !adversaryBPlayer) {
-            throw new Error('One or both players not found');
+            throw new Error('Les deux joueurs ne sont pas enregistrés');
         }
         const adversaryAPlayerRank = adversaryAPlayer.rank;
         const adversaryBPlayerRank = adversaryBPlayer.rank;
@@ -38,20 +38,20 @@ let MatchService = class MatchService {
         const WeB = 1 / (1 + Math.pow(10, (adversaryAPlayerRank - adversaryBPlayerRank) / 400));
         let scoreA = 0.5;
         let scoreB = 0.5;
-        let result = 'Match drawn';
+        let result = 'Match nul';
         if (!draw) {
             if (winner === adversaryA) {
                 scoreA = 1;
                 scoreB = 0;
-                result = `${adversaryA} defeated ${adversaryB}`;
+                result = `${adversaryA} a battu ${adversaryB}`;
             }
             else if (winner === adversaryB) {
                 scoreA = 0;
                 scoreB = 1;
-                result = `${adversaryB} defeated ${adversaryA}`;
+                result = `${adversaryB} a battu ${adversaryA}`;
             }
             else {
-                throw new Error('Invalid match result');
+                throw new Error('le résultat du match est invalide');
             }
         }
         const scoreFinalA = Math.round(adversaryAPlayerRank + K * (scoreA - WeA));
