@@ -5,8 +5,6 @@ import { PlayerService } from './services/player/player.service';
 import { MatchService } from './services/match/match.service';
 import { RankingCacheService } from './services/ranking-cache/ranking-cache.service';
 
-const FAKE_PLAYERS = ['Player1', 'Player2', 'Player3']; // Remplacez par vos joueurs fictifs
-
 @Controller()
 export class AppController {
   constructor(
