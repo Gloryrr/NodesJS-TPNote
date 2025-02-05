@@ -12,11 +12,14 @@ export class PlayerService {
     private readonly rankingCacheService: RankingCacheService,
   ) {}
 
-  async addPlayer(id: string, rank: number): Promise<void> {
-    const player = new Player();
-    player.name = id;
-    player.rank = rank;
-    await this.playerRepository.save(player);
+  async addPlayer(name: string, rank: number): Promise<void> {
+    const existingPlayer = await this.playerRepository.findOne({ where: { name } });
+    if (! existingPlayer) {
+      const player = new Player();
+      player.name = name;
+      player.rank = rank;
+      await this.playerRepository.save(player);
+    }
   }
 
   async getPlayer(id: number): Promise<Player | undefined> {
